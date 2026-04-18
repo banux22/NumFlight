@@ -6,78 +6,65 @@ import { TaskList } from './pages/TaskList';
 import { MainMenu } from './pages/MainMenu';
 import { TrainerPage } from './pages/TrainerPage';
 
-const initializeAssistant = (getState /*: any*/, getRecoveryState) => {
+const initializeAssistant = (getState) => {
   if (process.env.NODE_ENV === 'development') {
     return createSmartappDebugger({
       token: process.env.REACT_APP_TOKEN ?? '',
       initPhrase: `Запусти ${process.env.REACT_APP_SMARTAPP}`,
-      getState,                                           
-      // getRecoveryState: getState,                                           
+      getState,
       nativePanel: {
         defaultText: 'начнем',
         screenshotMode: false,
         tabIndex: -1,
-    },
+      },
+      settings: {
+        audio: false,
+        video: false,
+      },
     });
   } else {
-  return createAssistant({ getState });
+    return createAssistant({ getState, settings: { audio: false } });
   }
 };
 
 export class App extends React.Component {
   constructor(props) {
     super(props);
-    console.log('constructor');
-
+    
     this.state = {
       notes: [{ id: Math.random().toString(36).substring(7), title: 'тест' }],
       currentPage: 'main',
     };
-      
-
+    
+    this.trainerPageRef = React.createRef();
     this.assistant = initializeAssistant(() => this.getStateForAssistant());
 
-    this.assistant.on('data', (event /*: any*/) => {
-      console.log(`assistant.on(data)`, event);
-
-      if (event.type === 'character') {
-        console.log(`assistant.on(data): character: "${event?.character?.id}"`);
-      } else if (event.type === 'insets') {
-        console.log(`assistant.on(data): insets`);
-      } else if (event.type === 'smart_app_data') {
-        const action = event.smart_app_data;
-        console.log('smart_app_data action:', action);
-        this.dispatchAssistantAction(action);
-      } else {
-        console.log('Другой тип события:', event.type, event);
+    this.assistant.on('data', (event) => {
+      if (event.type === 'smart_app_data') {
+        let action = event.smart_app_data || event.action || event.payload;
+        
+        if (typeof action === 'string') {
+          try {
+            action = JSON.parse(action);
+          } catch(e) {
+            // Silent fail
+          }
+        }
+        
+        if (action && typeof action === 'object') {
+          this.dispatchAssistantAction(action);
+        }
       }
     });
 
     this.assistant.on('start', (event) => {
-      let initialData = this.assistant.getInitialData();
-
-      console.log(`assistant.on(start)`, event, initialData);
-    });
-
-    this.assistant.on('command', (event) => {
-      console.log(`assistant.on(command)`, event);
-    });
-
-    this.assistant.on('error', (event) => {
-      console.log(`assistant.on(error)`, event);
-    });
-
-    this.assistant.on('tts', (event) => {
-      console.log(`assistant.on(tts)`, event);
+      this.assistant.getInitialData();
     });
   }
 
-  componentDidMount() {
-    console.log('componentDidMount');
-  }
+  componentDidMount() {}
 
   getStateForAssistant() {
-    console.log('getStateForAssistant: this.state:', this.state);
     const state = {
       item_selector: {
         items: this.state.notes.map(({ id, title }, index) => ({
@@ -92,51 +79,118 @@ export class App extends React.Component {
         ],
       },
     };
-    console.log('getStateForAssistant: state:', state);
-    return state;   
+    return state;
   }
 
   dispatchAssistantAction(action) {
-    console.log('dispatchAssistantAction', action);
-    if (action) {
-      switch (action.type) {
-        case 'add_note':
-          return this.add_note(action);
-
-        case 'done_note':
-          return this.done_note(action);
-
-        case 'delete_note':
-          return this.delete_note(action);
+    if (!action || !action.type) {
+      return;
+    }
+    
+    switch (action.type) {
+      case 'add_note':
+        return this.add_note(action);
         
-        case 'delete_all_notes':
-          return this.delete_all_notes(action);
+      case 'done_note':
+        return this.done_note(action);
         
-        case 'select_section':
-          return this.select_section(action);
+      case 'delete_note':
+        return this.delete_note(action);
         
-        default:
-          throw new Error();
-      }
+      case 'delete_all_notes':
+        return this.delete_all_notes(action);
+        
+      case 'select_section':
+        return this.select_section(action);
+        
+      case 'start_training':
+        if (this.trainerPageRef && this.trainerPageRef.current) {
+          this.trainerPageRef.current.startTraining();
+        } else {
+          this.pendingAction = action;
+        }
+        return;
+        
+      case 'trainer_answer':
+        let answerValue = action.answer || action.value || action.text;
+        
+        if (action.parameters && action.parameters.value) {
+          answerValue = action.parameters.value;
+        }
+        
+        if (action.smart_app_data && action.smart_app_data.answer) {
+          answerValue = action.smart_app_data.answer;
+        }
+        
+        if (this.trainerPageRef && this.trainerPageRef.current) {
+          this.trainerPageRef.current.checkAnswer(answerValue);
+        }
+        return;
+        
+      case 'stop_training':
+        if (this.trainerPageRef && this.trainerPageRef.current) {
+          this.trainerPageRef.current.stopTraining();
+        }
+        return;
+        
+      case 'trainer_help':
+        if (this.trainerPageRef && this.trainerPageRef.current) {
+          this.trainerPageRef.current.showHelp();
+        }
+        return;
+        
+      default:
+        return null;
     }
   }
 
   add_note(action) {
-    console.log('add_note', action);
+    let noteText = action.note;
+    
+    if (Array.isArray(noteText) && noteText.length > 0) {
+      const firstItem = noteText[0];
+      if (firstItem && firstItem.text) {
+        noteText = firstItem.text;
+      } else if (typeof firstItem === 'string') {
+        noteText = firstItem;
+      } else {
+        noteText = String(firstItem);
+      }
+    }
+    
+    if (noteText && typeof noteText === 'object' && !Array.isArray(noteText)) {
+      if (noteText.text) {
+        noteText = noteText.text;
+      } else if (noteText.value) {
+        noteText = noteText.value;
+      } else {
+        noteText = JSON.stringify(noteText);
+      }
+    }
+    
+    noteText = String(noteText || '');
+    
+    noteText = noteText
+      .replace(/^(добавь|запиши|поставь|закинь|напомнить)\s*/i, '')
+      .replace(/\s+(заметку|задачу|задание|напоминание)$/i, '')
+      .trim();
+    
+    if (!noteText || noteText === 'undefined' || noteText === 'null') {
+      return;
+    }
+    
+    const newNote = {
+      id: Math.random().toString(36).substring(7),
+      title: noteText,
+      completed: false,
+    };
+    
     this.setState({
-      notes: [
-        ...this.state.notes,
-        {
-          id: Math.random().toString(36).substring(7),
-          title: action.note,
-          completed: false,
-        },
-      ],
+      notes: [...this.state.notes, newNote],
     });
   }
-
+  
   done_note(action) {
-    console.log('done_note', action);
     this.setState({
       notes: this.state.notes.map((note) =>
         note.id === action.id ? { ...note, completed: !note.completed } : note
@@ -145,26 +199,21 @@ export class App extends React.Component {
   }
 
   delete_all_notes(action) {
-    console.log('delete_all_notes', action);
     this.setState({
-        notes: [],
+      notes: [],
     });
-}
+  }
 
   _send_action_value(action_id, value) {
     const data = {
       action: {
         action_id: action_id,
         parameters: {
-          // значение поля parameters может быть любым, но должно соответствовать серверной логике
-          value: value, // см.файл src/sc/noteDone.sc смартаппа в Studio Code
+          value: value,
         },
       },
     };
     const unsubscribe = this.assistant.sendData(data, (data) => {
-      // функция, вызываемая, если на sendData() был отправлен ответ
-      const { type, payload } = data;
-      console.log('sendData onData:', type, payload);
       unsubscribe();
     });
   }
@@ -179,29 +228,38 @@ export class App extends React.Component {
   }
 
   delete_note(action) {
-    console.log('delete_note', action);
     this.setState({
       notes: this.state.notes.filter(({ id }) => id !== action.id),
     });
   }
 
   select_section(action) {
-    console.log('select_section', action);
     if (action.section === 'trainer') {
-      this.setState({ currentPage: 'trainer' });
+      this.setState({ currentPage: 'trainer' }, () => {
+        if (this.pendingAction && this.pendingAction.type === 'start_training') {
+          if (this.trainerPageRef && this.trainerPageRef.current) {
+            this.trainerPageRef.current.startTraining();
+          }
+          this.pendingAction = null;
+        }
+      });
     } else if (action.section === 'notes') {
       this.setState({ currentPage: 'notes' });
+    } else if (action.section === 'main') {
+      this.setState({ currentPage: 'main' });
     }
   }
 
   render() {
-    console.log('render', this.state.currentPage);
-    
     if (this.state.currentPage === 'main') {
       return (
         <MainMenu 
-          onSelectTrainer={() => this.setState({ currentPage: 'trainer' })}
-          onSelectNotes={() => this.setState({ currentPage: 'notes' })}
+          onSelectTrainer={() => {
+            this.setState({ currentPage: 'trainer' });
+          }}
+          onSelectNotes={() => {
+            this.setState({ currentPage: 'notes' });
+          }}
         />
       );
     }
@@ -209,7 +267,11 @@ export class App extends React.Component {
     if (this.state.currentPage === 'trainer') {
       return (
         <TrainerPage 
-          onBack={() => this.setState({ currentPage: 'main' })}
+          ref={this.trainerPageRef}
+          onBack={() => {
+            this.setState({ currentPage: 'main' });
+          }}
+          assistant={this.assistant}    
         />
       );
     }
@@ -219,7 +281,9 @@ export class App extends React.Component {
         <>
           <div style={{ textAlign: 'center', margin: '10px 0' }}>
             <button 
-              onClick={() => this.setState({ currentPage: 'main' })}
+              onClick={() => {
+                this.setState({ currentPage: 'main' });
+              }}
               style={{ padding: '8px 16px', background: '#888', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer' }}
             >
               На главную
