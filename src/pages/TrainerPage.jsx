@@ -5,6 +5,7 @@ export class TrainerPage extends React.Component {
     super(props);
     this.state = {
       isActive: false,
+      currentGame: null, // выбранная игра: 'blitz', 'chain', 'compare'
       currentQuestion: null,
       feedback: '',
       score: { correct: 0, total: 0 },
@@ -18,9 +19,39 @@ export class TrainerPage extends React.Component {
     this.showHelp = this.showHelp.bind(this);
     this.checkAnswer = this.checkAnswer.bind(this);
     this.generateQuestion = this.generateQuestion.bind(this);
+    this.selectGame = this.selectGame.bind(this);
+  }
+
+  // Метод для выбора игры
+  selectGame(gameType) {
+    const gameNames = {
+      'blitz': 'Блиц',
+      'chain': 'Цепочки',
+      'compare': 'Сравни числа'
+    };
+    this.setState({
+      currentGame: gameType,
+      isActive: false,
+      currentQuestion: null,
+      feedback: `Выбрана игра: ${gameNames[gameType]}. Скажите "начать тренировку"`,
+      score: { correct: 0, total: 0 },
+      lastAnswer: null
+    });
+  }
+
+  selectAnotherGame() {
+    this.setState({
+      currentGame: null,
+      isActive: false,
+      currentQuestion: null,
+      feedback: 'Выберите игру: "блиц", "цепочки" или "сравни числа"',
+      score: { correct: 0, total: 0 },
+      lastAnswer: null
+    });
   }
 
   generateQuestion() {
+    // Пока оставляем ту же логику, что и была
     const operations = ['+', '-', '*'];
     const op = operations[Math.floor(Math.random() * operations.length)];
     
@@ -49,6 +80,13 @@ export class TrainerPage extends React.Component {
   }
 
   startTraining() {
+    if (!this.state.currentGame) {
+      this.setState({
+        feedback: 'Сначала выберите игру: "блиц", "цепочки" или "сравни числа"'
+      });
+      return;
+    }
+    
     const question = this.generateQuestion();
     this.setState({
       isActive: true,
@@ -70,11 +108,13 @@ export class TrainerPage extends React.Component {
 
   showHelp() {
     this.setState({
-      feedback: 'Называйте ответ голосом. Например: "двадцать пять" или "ответ сорок два"'
+      feedback: 'Сначала выберите игру: "блиц", "цепочки" или "сравни числа". Затем скажите "начать тренировку" и называйте ответ голосом. Например: "двадцать пять" или "ответ сорок два"'
     });
     setTimeout(() => {
-      if (this.state.isActive) {
-        this.setState({ feedback: 'Скажите ответ голосом!' });
+      if (!this.state.isActive && this.state.currentGame) {
+        this.setState({ feedback: 'Скажите "начать тренировку"' });
+      } else if (!this.state.currentGame) {
+        this.setState({ feedback: 'Скажите название игры: "блиц", "цепочки" или "сравни числа"' });
       }
     }, 5000);
   }
@@ -156,7 +196,7 @@ export class TrainerPage extends React.Component {
 
   render() {
     const { onBack } = this.props;
-    const { isActive, currentQuestion, feedback, score } = this.state;
+    const { isActive, currentGame, currentQuestion, feedback, score } = this.state;
     
     let questionText = '?';
     if (currentQuestion && typeof currentQuestion === 'object') {
@@ -174,6 +214,13 @@ export class TrainerPage extends React.Component {
     const correctCount = typeof score.correct === 'number' ? score.correct : 0;
     const totalCount = typeof score.total === 'number' ? score.total : 0;
     
+    const gameNames = {
+      'blitz': 'Блиц',
+      'chain': 'Цепочки',
+      'compare': 'Сравни числа'
+    };
+    console.log('Current game in state:', this.state.currentGame);
+    console.log('Is active:', this.state.isActive);
     return (
       <div style={{ textAlign: 'center', marginTop: '50px', padding: '20px' }}>
         <button 
@@ -193,32 +240,113 @@ export class TrainerPage extends React.Component {
         
         <h1>Тренажёр устного счёта</h1>
         
-        {!isActive ? (
-          <div>
-            <p style={{ fontSize: '18px', margin: '20px 0' }}>
-              Тренируйте устный счёт голосом!
+        {/* Выбор игры */}
+        {!isActive && !currentGame && (
+          <div style={{ marginTop: '30px' }}>
+            <h3>Выберите игру:</h3>
+            <div style={{ display: 'flex', gap: '15px', justifyContent: 'center', marginTop: '20px', flexWrap: 'wrap' }}>
+              <button
+                onClick={() => this.selectGame('blitz')}
+                style={{
+                  padding: '15px 30px',
+                  fontSize: '18px',
+                  background: '#FF9800',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '12px',
+                  cursor: 'pointer'
+                }}
+              >
+                Блиц
+              </button>
+              <button
+                onClick={() => this.selectGame('chain')}
+                style={{
+                  padding: '15px 30px',
+                  fontSize: '18px',
+                  background: '#9C27B0',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '12px',
+                  cursor: 'pointer'
+                }}
+              >
+                Цепочки
+              </button>
+              <button
+                onClick={() => this.selectGame('compare')}
+                style={{
+                  padding: '15px 30px',
+                  fontSize: '18px',
+                  background: '#00BCD4',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '12px',
+                  cursor: 'pointer'
+                }}
+              >
+                Сравни числа
+              </button>
+            </div>
+            <p style={{ marginTop: '20px', color: 'rgba(255,255,255,0.7)' }}>
+              Или скажите голосом: "блиц", "цепочки" или "сравни числа"
             </p>
-            <button
-              onClick={this.startTraining}
-              style={{
-                padding: '15px 30px',
-                fontSize: '18px',
-                background: '#4CAF50',
-                color: 'white',
-                border: 'none',
-                borderRadius: '12px',
-                cursor: 'pointer'
-              }}
-            >
-              Начать тренировку
-            </button>
-            {feedbackText && feedbackText.length > 0 && (
-              <div style={{ marginTop: '20px', padding: '15px', background: 'rgba(255,255,255,0.1)', borderRadius: '12px' }}>
-                {feedbackText}
-              </div>
-            )}
           </div>
-        ) : (
+        )}
+        
+        {/* Показываем выбранную игру, если активна */}
+        {!isActive && currentGame && !currentQuestion && (
+          <div style={{ marginTop: '30px' }}>
+            <div style={{ 
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              borderRadius: '20px',
+              padding: '30px',
+              maxWidth: '400px',
+              margin: '20px auto'
+            }}>
+              <h3>Выбрана игра: {gameNames[currentGame]}</h3>
+              <button
+                onClick={this.startTraining}
+                style={{
+                  marginTop: '20px',
+                  padding: '12px 24px',
+                  fontSize: '18px',
+                  background: '#4CAF50',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '12px',
+                  cursor: 'pointer'
+                }}
+              >
+                Начать тренировку
+              </button>
+              <button
+                onClick={() => this.setState({ currentGame: null, feedback: '' })}
+                style={{
+                  marginTop: '20px',
+                  marginLeft: '10px',
+                  padding: '12px 24px',
+                  fontSize: '18px',
+                  background: '#888',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '12px',
+                  cursor: 'pointer'
+                }}
+              >
+                Выбрать другую игру
+              </button>
+            </div>
+          </div>
+        )}
+        
+        {!isActive && !currentGame && feedbackText && feedbackText.length > 0 && (
+          <div style={{ marginTop: '20px', padding: '15px', background: 'rgba(255,255,255,0.1)', borderRadius: '12px' }}>
+            {feedbackText}
+          </div>
+        )}
+        
+        {isActive && (
           <div style={{ 
             background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
             borderRadius: '30px',
@@ -227,6 +355,10 @@ export class TrainerPage extends React.Component {
             margin: '20px auto',
             color: 'white'
           }}>
+            <div style={{ fontSize: '24px', marginBottom: '10px' }}>
+              Игра: {gameNames[currentGame]}
+            </div>
+            
             <div style={{ fontSize: '48px', fontWeight: 'bold', margin: '20px 0' }}>
               {questionText} = ?
             </div>
@@ -276,7 +408,9 @@ export class TrainerPage extends React.Component {
           margin: '40px auto 0'
         }}>
           <h3>Голосовые команды</h3>
-          <p>"тренажёр" — перейти в тренажёр</p>
+          <p>"блиц" — выбрать игру Блиц</p>
+          <p>"цепочки" — выбрать игру Цепочки</p>
+          <p>"сравни числа" — выбрать игру Сравни числа</p>
           <p>"начать тренировку" — запустить</p>
           <p>"25" или "ответ 42" — назвать ответ</p>
           <p>"завершить тренировку" — остановить</p>

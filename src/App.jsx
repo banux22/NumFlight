@@ -2,7 +2,6 @@ import React from 'react';
 import { createAssistant, createSmartappDebugger } from '@salutejs/client';
 
 import './App.css';
-import { TaskList } from './pages/TaskList';
 import { MainMenu } from './pages/MainMenu';
 import { TrainerPage } from './pages/TrainerPage';
 
@@ -37,6 +36,7 @@ export class App extends React.Component {
     };
     
     this.trainerPageRef = React.createRef();
+    this.pendingGameAction = null;
     this.assistant = initializeAssistant(() => this.getStateForAssistant());
 
     this.assistant.on('data', (event) => {
@@ -88,20 +88,22 @@ export class App extends React.Component {
     }
     
     switch (action.type) {
-      case 'add_note':
-        return this.add_note(action);
-        
-      case 'done_note':
-        return this.done_note(action);
-        
-      case 'delete_note':
-        return this.delete_note(action);
-        
-      case 'delete_all_notes':
-        return this.delete_all_notes(action);
-        
       case 'select_section':
         return this.select_section(action);
+
+      case 'select_game':
+        if (this.trainerPageRef && this.trainerPageRef.current) {
+          this.trainerPageRef.current.selectGame(action.game);
+        } else {
+          this.pendingGameAction = action;
+        }
+        return;
+      
+      case 'select_another_game':
+        if (this.trainerPageRef && this.trainerPageRef.current) {
+          this.trainerPageRef.current.selectAnotherGame();
+        }
+        return;
         
       case 'start_training':
         if (this.trainerPageRef && this.trainerPageRef.current) {
@@ -144,66 +146,6 @@ export class App extends React.Component {
     }
   }
 
-  add_note(action) {
-    let noteText = action.note;
-    
-    if (Array.isArray(noteText) && noteText.length > 0) {
-      const firstItem = noteText[0];
-      if (firstItem && firstItem.text) {
-        noteText = firstItem.text;
-      } else if (typeof firstItem === 'string') {
-        noteText = firstItem;
-      } else {
-        noteText = String(firstItem);
-      }
-    }
-    
-    if (noteText && typeof noteText === 'object' && !Array.isArray(noteText)) {
-      if (noteText.text) {
-        noteText = noteText.text;
-      } else if (noteText.value) {
-        noteText = noteText.value;
-      } else {
-        noteText = JSON.stringify(noteText);
-      }
-    }
-    
-    noteText = String(noteText || '');
-    
-    noteText = noteText
-      .replace(/^(добавь|запиши|поставь|закинь|напомнить)\s*/i, '')
-      .replace(/\s+(заметку|задачу|задание|напоминание)$/i, '')
-      .trim();
-    
-    if (!noteText || noteText === 'undefined' || noteText === 'null') {
-      return;
-    }
-    
-    const newNote = {
-      id: Math.random().toString(36).substring(7),
-      title: noteText,
-      completed: false,
-    };
-    
-    this.setState({
-      notes: [...this.state.notes, newNote],
-    });
-  }
-  
-  done_note(action) {
-    this.setState({
-      notes: this.state.notes.map((note) =>
-        note.id === action.id ? { ...note, completed: !note.completed } : note
-      ),
-    });
-  }
-
-  delete_all_notes(action) {
-    this.setState({
-      notes: [],
-    });
-  }
-
   _send_action_value(action_id, value) {
     const data = {
       action: {
@@ -215,21 +157,6 @@ export class App extends React.Component {
     };
     const unsubscribe = this.assistant.sendData(data, (data) => {
       unsubscribe();
-    });
-  }
-
-  play_done_note(id) {
-    const completed = this.state.notes.find(({ id }) => id)?.completed;
-    if (!completed) {
-      const texts = ['Молодец!', 'Красавчик!', 'Супер!'];
-      const idx = (Math.random() * texts.length) | 0;
-      this._send_action_value('done', texts[idx]);
-    }
-  }
-
-  delete_note(action) {
-    this.setState({
-      notes: this.state.notes.filter(({ id }) => id !== action.id),
     });
   }
 
@@ -289,19 +216,7 @@ export class App extends React.Component {
               На главную
             </button>
           </div>
-          <TaskList
-            items={this.state.notes}
-            onAdd={(note) => {
-              this.add_note({ type: 'add_note', note });
-            }}
-            onDone={(note) => {
-              this.play_done_note(note.id);
-              this.done_note({ type: 'done_note', id: note.id });
-            }}
-            onDeleteAll={() => {
-              this.delete_all_notes({type: 'delete_all_notes'});
-            }}
-          />
+          
         </>
       );
     }
