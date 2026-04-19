@@ -87,18 +87,31 @@ export class App extends React.Component {
       return;
     }
     
+    if (action.type === 'trainer_answer' && this.state.currentPage !== 'trainer') {
+      console.log('Ignoring trainer_answer - not on trainer page');
+      return;
+    }
+    
+    if (action.type === 'trainer_answer' && this.trainerPageRef && this.trainerPageRef.current) {
+      if (!this.trainerPageRef.current.state.isActive) {
+        console.log('Ignoring trainer_answer - training not active');
+        return;
+      }
+    }
+    
     switch (action.type) {
       case 'select_section':
         return this.select_section(action);
-
+        
       case 'select_game':
+        console.log('select_game received:', action.game);
         if (this.trainerPageRef && this.trainerPageRef.current) {
           this.trainerPageRef.current.selectGame(action.game);
         } else {
           this.pendingGameAction = action;
         }
         return;
-      
+        
       case 'select_another_game':
         if (this.trainerPageRef && this.trainerPageRef.current) {
           this.trainerPageRef.current.selectAnotherGame();
@@ -161,21 +174,29 @@ export class App extends React.Component {
   }
 
   select_section(action) {
-    if (action.section === 'trainer') {
-      this.setState({ currentPage: 'trainer' }, () => {
-        if (this.pendingAction && this.pendingAction.type === 'start_training') {
-          if (this.trainerPageRef && this.trainerPageRef.current) {
-            this.trainerPageRef.current.startTraining();
-          }
-          this.pendingAction = null;
+  if (action.section === 'trainer') {
+    this.setState({ currentPage: 'trainer' }, () => {
+      if (this.pendingGameAction) {
+        if (this.trainerPageRef && this.trainerPageRef.current) {
+          this.trainerPageRef.current.selectGame(this.pendingGameAction.game);
         }
-      });
-    } else if (action.section === 'notes') {
-      this.setState({ currentPage: 'notes' });
-    } else if (action.section === 'main') {
-      this.setState({ currentPage: 'main' });
-    }
+        this.pendingGameAction = null;
+      }
+      if (this.pendingAction && this.pendingAction.type === 'start_training') {
+        if (this.trainerPageRef && this.trainerPageRef.current) {
+          this.trainerPageRef.current.startTraining();
+        }
+        this.pendingAction = null;
+      }
+    });
+  } else if (action.section === 'main') {
+    this.setState({ 
+      currentPage: 'main',
+      pendingAction: null,
+      pendingGameAction: null
+    });
   }
+}
 
   render() {
     if (this.state.currentPage === 'main') {
