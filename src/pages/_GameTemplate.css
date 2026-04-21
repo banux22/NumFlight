@@ -1,0 +1,251 @@
+.game-template-container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 20px;
+  min-height: 100vh;
+}
+
+.game-template-top-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30px;
+  gap: 15px;
+  flex-wrap: wrap;
+}
+
+.game-template-back-btn {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  padding: 10px 20px;
+  border-radius: 10px;
+  border: none;
+  cursor: pointer;
+  font-size: 16px;
+  transition: all 0.2s;
+}
+
+.game-template-back-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: translateY(-2px);
+}
+
+.game-template-title {
+  font-size: 28px;
+  margin: 0;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.game-template-help-btn {
+  background: rgba(255, 152, 0, 0.8);
+  color: white;
+  padding: 10px 20px;
+  border-radius: 10px;
+  border: none;
+  cursor: pointer;
+  font-size: 16px;
+  transition: all 0.2s;
+}
+
+.game-template-help-btn:hover {
+  background: rgba(255, 152, 0, 1);
+  transform: translateY(-2px);
+}
+
+.game-template-progress {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  padding: 12px 20px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 15px;
+  font-size: 16px;
+}
+
+.game-template-score-badge {
+  background: rgba(255, 215, 0, 0.3);
+  padding: 4px 12px;
+  border-radius: 20px;
+  color: #FFD700;
+}
+
+.game-template-card {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border-radius: 30px;
+  padding: 40px;
+  margin-bottom: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  transition: transform 0.3s;
+}
+
+.game-template-start-screen {
+  text-align: center;
+}
+
+.game-template-description {
+  font-size: 18px;
+  margin-bottom: 30px;
+  color: rgba(255, 255, 255, 0.8);
+  line-height: 1.6;
+}
+
+.game-template-start-btn {
+  background: linear-gradient(135deg, #4CAF50, #45a049);
+  padding: 15px 40px;
+  font-size: 18px;
+  border-radius: 15px;
+  border: none;
+  color: white;
+  cursor: pointer;
+  margin-right: 10px;
+  transition: transform 0.2s;
+}
+
+.game-template-start-btn:hover {
+  transform: scale(1.05);
+}
+
+.game-template-another-game-btn {
+  background: rgba(255, 255, 255, 0.2);
+  padding: 15px 40px;
+  font-size: 18px;
+  border-radius: 15px;
+  border: none;
+  color: white;
+  cursor: pointer;
+  margin-left: 10px;
+  transition: transform 0.2s;
+}
+
+.game-template-another-game-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: scale(1.05);
+}
+
+.game-template-question-card {
+  text-align: center;
+  font-size: 32px;
+  font-weight: bold;
+  margin: 20px 0;
+  padding: 20px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 20px;
+  word-break: break-word;
+  white-space: pre-wrap;
+  animation: fadeIn 0.5s;
+}
+
+.game-template-stop-btn {
+  background: #f44336;
+  padding: 10px 20px;
+  border-radius: 10px;
+  border: none;
+  color: white;
+  cursor: pointer;
+  margin-top: 20px;
+  width: 100%;
+  font-size: 16px;
+  transition: all 0.2s;
+}
+
+.game-template-stop-btn:hover {
+  background: #d32f2f;
+  transform: translateY(-2px);
+}
+
+.game-template-last-answer {
+  text-align: center;
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 10px;
+  margin-bottom: 15px;
+  font-size: 14px;
+}
+
+.game-template-feedback-area {
+  margin-bottom: 20px;
+}
+
+.game-template-feedback-box {
+  padding: 15px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 15px;
+  text-align: center;
+  animation: fadeIn 0.5s;
+}
+
+.game-template-hint-box {
+  padding: 15px;
+  background: rgba(255, 215, 0, 0.2);
+  border-radius: 15px;
+  text-align: center;
+  color: #FFD700;
+  animation: fadeIn 0.5s;
+}
+
+.game-template-voice-hint {
+  margin-top: 20px;
+  padding: 12px;
+  text-align: center;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.6);
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 10px;
+}
+
+/* Анимации */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Адаптивность */
+@media (max-width: 768px) {
+  .game-template-container {
+    padding: 15px;
+  }
+  
+  .game-template-top-bar {
+    gap: 10px;
+  }
+  
+  .game-template-title {
+    font-size: 22px;
+  }
+  
+  .game-template-back-btn,
+  .game-template-help-btn {
+    padding: 8px 16px;
+    font-size: 14px;
+  }
+  
+  .game-template-card {
+    padding: 25px;
+  }
+  
+  .game-template-question-card {
+    font-size: 24px;
+    padding: 15px;
+  }
+  
+  .game-template-start-btn,
+  .game-template-another-game-btn {
+    padding: 12px 25px;
+    font-size: 16px;
+    margin: 5px;
+  }
+  
+  .game-template-description {
+    font-size: 16px;
+  }
+}
