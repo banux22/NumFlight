@@ -1,5 +1,5 @@
 import React from 'react';
-import './_GameTemplate.css'; // Импортируем стили
+import './_GameTemplate.css';
 
 export class GameTemplate extends React.Component {
   constructor(props) {
@@ -22,7 +22,6 @@ export class GameTemplate extends React.Component {
     this.stopGame = this.stopGame.bind(this);
     this.checkAnswer = this.checkAnswer.bind(this);
     this.showHelp = this.showHelp.bind(this);
-    this.formatAnswer = this.formatAnswer.bind(this);
     this.endGame = this.endGame.bind(this);
     this.speak = this.speak.bind(this);
     this.parseNumber = this.parseNumber.bind(this);
@@ -120,35 +119,6 @@ export class GameTemplate extends React.Component {
     if (!text) return NaN;
     
     const cleanText = this.safeString(text);
-    
-    const numbers = {
-      'один': 1, 'одна': 1, 'одно': 1,
-      'два': 2, 'две': 2,
-      'три': 3, 'четыре': 4, 'пять': 5,
-      'шесть': 6, 'семь': 7, 'восемь': 8,
-      'девять': 9, 'десять': 10,
-      'одиннадцать': 11, 'двенадцать': 12, 'тринадцать': 13,
-      'четырнадцать': 14, 'пятнадцать': 15, 'шестнадцать': 16,
-      'семнадцать': 17, 'восемнадцать': 18, 'девятнадцать': 19,
-      'двадцать': 20, 'тридцать': 30, 'сорок': 40,
-      'пятьдесят': 50, 'шестьдесят': 60, 'семьдесят': 70,
-      'восемьдесят': 80, 'девяносто': 90, 'сто': 100,
-      'двести': 200, 'триста': 300, 'четыреста': 400, 'пятьсот': 500,
-      'шестьсот': 600, 'семьсот': 700, 'восемьсот': 800, 'девятьсот': 900,
-      'тысяча': 1000
-    };
-    
-    const lowerText = cleanText.toLowerCase().trim();
-    
-    if (numbers[lowerText]) return numbers[lowerText];
-    
-    const parts = lowerText.split(/\s+/);
-    if (parts.length === 2) {
-      const tens = numbers[parts[0]];
-      const ones = numbers[parts[1]];
-      if (tens && ones) return tens + ones;
-    }
-    
     const num = parseInt(cleanText, 10);
     return isNaN(num) ? NaN : num;
   }
@@ -195,113 +165,130 @@ export class GameTemplate extends React.Component {
     
     this.speak(stopMsg);
   }
-
-  checkAnswer(userAnswer) {
-    console.log('=== CHECK ANSWER ===');
-    console.log('userAnswer:', userAnswer);
+checkAnswer(userAnswer) {
+  console.log('=== CHECK ANSWER ===');
+  console.log('userAnswer:', userAnswer);
+  
+  if (!this.state.isActive) {
+    console.log('Game not active, ignoring answer');
+    return;
+  }
+  
+  // Проверка на команду "дальше" для игр с allowNextCommand
+  const answerStr = this.safeString(userAnswer).toLowerCase().trim();
+  const isNextCommand = answerStr.includes('дальше') || 
+                        answerStr.includes('продолжить') || 
+                        answerStr === 'next';
+  
+  // Для пошаговых игр с поддержкой "дальше" на начальном шаге
+  if (this.gameEngine.allowNextCommand && 
+      this.state.currentQuestion && 
+      this.state.currentQuestion.showInitial && 
+      isNextCommand) {
+    const nextQuestion = this.gameEngine.getNextStep(this.state.currentQuestion, userAnswer);
+    this.setState({
+      currentQuestion: nextQuestion,
+      feedback: `Начальное число: ${this.state.currentQuestion.initialValue}`
+    });
     
-    if (!this.state.isActive) {
-      console.log('Game not active, ignoring answer');
+    setTimeout(() => {
+      if (this.state.isActive && this.state.currentQuestion && 
+          this.state.currentQuestion.steps && 
+          this.state.currentQuestion.steps[0]) {
+        this.speak(this.state.currentQuestion.steps[0].voiceText);
+      }
+    }, 500);
+    return;
+  }
+  
+  let isCorrect = false;
+  let userResponse = '';
+  
+  // Для игры Сравни числа
+  if (this.gameEngine.getName() === 'Сравни числа') {
+    const answerStr = this.safeString(userAnswer).toLowerCase().trim();
+    
+    if (answerStr.includes('лево') || answerStr === 'left' || answerStr === 'левое') {
+      userResponse = 'left';
+      isCorrect = (this.state.currentQuestion.correctAnswer === 'left');
+    } else if (answerStr.includes('прав') || answerStr === 'right' || answerStr === 'правое') {
+      userResponse = 'right';
+      isCorrect = (this.state.currentQuestion.correctAnswer === 'right');
+    } else {
+      this.setState({
+        feedback: 'Скажите "левое" или "правое"'
+      });
+      this.speak('Скажите левое или правое');
       return;
     }
+  } 
+  // Для пошаговых игр (Цепочки)
+  else if (this.gameEngine.stepByStepMode) {
+    isCorrect = this.gameEngine.checkAnswer(userAnswer, this.state.currentQuestion);
+    userResponse = userAnswer;
+  }
+  // Для обычных игр (Блиц и другие)
+  else {
+    let userNumber = null;
     
-    let isCorrect = false;
-    let userResponse = '';
-    
-    if (this.gameEngine.getName() === 'Сравни числа') {
-      const answerStr = this.safeString(userAnswer).toLowerCase().trim();
-      
-      if (answerStr.includes('лево') || answerStr === 'left' || answerStr === 'левое') {
-        userResponse = 'left';
-        isCorrect = (this.state.currentQuestion.correctAnswer === 'left');
-      } else if (answerStr.includes('прав') || answerStr === 'right' || answerStr === 'правое') {
-        userResponse = 'right';
-        isCorrect = (this.state.currentQuestion.correctAnswer === 'right');
+    if (Array.isArray(userAnswer)) {
+      if (userAnswer.length > 0 && userAnswer[0] && userAnswer[0].text) {
+        userNumber = this.parseNumber(userAnswer[0].text);
+      }
+    }
+    else if (typeof userAnswer === 'string') {
+      userNumber = this.parseNumber(userAnswer);
+    }
+    else if (typeof userAnswer === 'number') {
+      userNumber = userAnswer;
+    }
+    else if (typeof userAnswer === 'object') {
+      if (userAnswer.text) {
+        userNumber = this.parseNumber(userAnswer.text);
+      } else if (userAnswer.value !== undefined) {
+        userNumber = this.parseNumber(String(userAnswer.value));
+      } else if (userAnswer.answer !== undefined) {
+        userNumber = this.parseNumber(String(userAnswer.answer));
       } else {
-        this.setState({
-          feedback: 'Скажите "левое" или "правое"'
-        });
-        this.speak('Скажите левое или правое');
-        return;
+        userNumber = this.parseNumber(JSON.stringify(userAnswer));
       }
-    } 
-    else {
-      let userNumber = null;
-      
-      if (Array.isArray(userAnswer)) {
-        if (userAnswer.length > 0 && userAnswer[0] && userAnswer[0].text) {
-          userNumber = this.parseNumber(userAnswer[0].text);
-        }
-      }
-      else if (typeof userAnswer === 'string') {
-        userNumber = this.parseNumber(userAnswer);
-      }
-      else if (typeof userAnswer === 'number') {
-        userNumber = userAnswer;
-      }
-      else if (typeof userAnswer === 'object') {
-        if (userAnswer.text) {
-          userNumber = this.parseNumber(userAnswer.text);
-        } else if (userAnswer.value !== undefined) {
-          userNumber = this.parseNumber(String(userAnswer.value));
-        } else if (userAnswer.answer !== undefined) {
-          userNumber = this.parseNumber(String(userAnswer.answer));
-        } else {
-          userNumber = this.parseNumber(JSON.stringify(userAnswer));
-        }
-      }
-      
-      console.log('Parsed number:', userNumber);
-      console.log('Expected answer:', this.state.currentQuestion.answer);
-      
-      isCorrect = (userNumber === this.state.currentQuestion.answer);
     }
     
-    const newScore = {
-      correct: this.state.score.correct + (isCorrect ? 1 : 0),
-      total: this.state.score.total + 1
+    isCorrect = (userNumber === this.state.currentQuestion.answer);
+    userResponse = userNumber;
+  }
+  
+  // ВАЖНО: newScore объявляем ТОЛЬКО ЗДЕСЬ, после всех проверок
+  const newScore = {
+    correct: this.state.score.correct + (isCorrect ? 1 : 0),
+    total: this.state.score.total + 1
+  };
+  
+  let feedback;
+  
+  // Формируем feedback в зависимости от типа игры
+  if (this.gameEngine.getName() === 'Сравни числа') {
+    const leftValue = this.state.currentQuestion.left.value;
+    const rightValue = this.state.currentQuestion.right.value;
+    const leftText = this.state.currentQuestion.left.text;
+    const rightText = this.state.currentQuestion.right.text;
+    const sign = leftValue > rightValue ? '>' : (leftValue < rightValue ? '<' : '=');
+    
+    const formatValue = (val) => {
+      if (Number.isInteger(val)) return val.toString();
+      return val.toFixed(2).replace(/\.?0+$/, '');
     };
     
-    let feedback;
+    const leftFormatted = formatValue(leftValue);
+    const rightFormatted = formatValue(rightValue);
     
-    if (this.gameEngine.getName() === 'Сравни числа') {
-      const leftValue = this.state.currentQuestion.left.value;
-      const rightValue = this.state.currentQuestion.right.value;
-      const leftText = this.state.currentQuestion.left.text;
-      const rightText = this.state.currentQuestion.right.text;
-      const sign = leftValue > rightValue ? '>' : (leftValue < rightValue ? '<' : '=');
-      
-      const formatValue = (val) => {
-        if (Number.isInteger(val)) return val.toString();
-        return val.toFixed(2).replace(/\.?0+$/, '');
-      };
-      
-      const leftFormatted = formatValue(leftValue);
-      const rightFormatted = formatValue(rightValue);
-      
-      if (isCorrect) {
-        feedback = `Правильно! ${leftFormatted} ${sign} ${rightFormatted} (${leftText} ? ${rightText})`;
-      } else {
-        feedback = `Неправильно. ${leftFormatted} ${sign} ${rightFormatted} (${leftText} ? ${rightText})`;
-      }
-    } 
-    else if (this.gameEngine.getName() === 'Цепочки') {
-      if (isCorrect) {
-        feedback = `Правильно! Ответ: ${this.state.currentQuestion.answer}`;
-      } else {
-        feedback = `Неправильно. Правильный ответ: ${this.state.currentQuestion.answer}`;
-      }
-    }
-    else {
-      if (isCorrect) {
-        feedback = `Правильно! ${this.state.currentQuestion.text} = ${this.state.currentQuestion.answer}`;
-      } else {
-        feedback = `Неправильно. ${this.state.currentQuestion.text} = ${this.state.currentQuestion.answer}`;
-      }
+    if (isCorrect) {
+      feedback = `Правильно! ${leftFormatted} ${sign} ${rightFormatted} (${leftText} ? ${rightText})`;
+    } else {
+      feedback = `Неправильно. ${leftFormatted} ${sign} ${rightFormatted} (${leftText} ? ${rightText})`;
     }
     
     const safeFeedback = this.safeString(feedback);
-    
     this.speak(safeFeedback);
     
     if (this.state.currentIndex >= this.state.totalQuestions) {
@@ -310,22 +297,92 @@ export class GameTemplate extends React.Component {
     }
     
     const nextQuestion = this.gameEngine.generateQuestion();
-    
     this.setState({
       currentQuestion: nextQuestion,
       currentIndex: this.state.currentIndex + 1,
       feedback: safeFeedback,
       score: newScore,
-      lastAnswer: this.safeString(userResponse || userAnswer)
+      lastAnswer: userResponse
+    });
+    return;
+  }
+  else if (this.gameEngine.stepByStepMode) {
+    // Для пошаговых игр
+    const hideStepFeedback = this.gameEngine.hideStepFeedback || false;
+    const nextQuestion = this.gameEngine.getNextStep(this.state.currentQuestion, userAnswer);
+    
+    // Проверяем, завершена ли цепочка
+    const isGameComplete = nextQuestion && 
+                           nextQuestion.currentStepIndex >= nextQuestion.steps?.length && 
+                           !nextQuestion.showInitial;
+    
+    // Формируем feedback только для финала или если не скрываем
+    if (isGameComplete && !hideStepFeedback) {
+      feedback = isCorrect ? 
+        this.gameEngine.getCorrectMessage(this.state.currentQuestion) : 
+        this.gameEngine.getWrongMessage(this.state.currentQuestion);
+    } else if (!hideStepFeedback) {
+      feedback = isCorrect ? 
+        this.gameEngine.getCorrectMessage(this.state.currentQuestion) : 
+        this.gameEngine.getWrongMessage(this.state.currentQuestion);
+    } else {
+      feedback = ''; // Пустое сообщение для скрытых шагов
+    }
+    
+    // Озвучиваем только если есть что сказать
+    if (feedback && !hideStepFeedback) {
+      this.speak(feedback);
+    }
+    
+    // Обновляем состояние
+    this.setState({
+      currentQuestion: nextQuestion,
+      feedback: feedback || '✅',
+      score: newScore,
+      lastAnswer: userResponse
     });
     
-    setTimeout(() => {
-      if (this.state.isActive) {
-        this.keepListening();
-      }
-    }, 1000);
+    // Озвучиваем следующий шаг
+    if (!isGameComplete && nextQuestion && nextQuestion.steps && 
+        nextQuestion.currentStepIndex < nextQuestion.steps.length) {
+      setTimeout(() => {
+        if (this.state.isActive && this.state.currentQuestion) {
+          const nextStepText = this.gameEngine.getQuestionText(this.state.currentQuestion);
+          if (nextStepText && !hideStepFeedback) {
+            this.speak(nextStepText);
+          }
+        }
+      }, 500);
+    }
+    return;
   }
-
+  else {
+    // Обычные игры (Блиц)
+    if (isCorrect) {
+      feedback = `Правильно! ${this.state.currentQuestion.text} = ${this.state.currentQuestion.answer}`;
+    } else {
+      feedback = `Неправильно. ${this.state.currentQuestion.text} = ${this.state.currentQuestion.answer}`;
+    }
+    
+    const safeFeedback = this.safeString(feedback);
+    this.speak(safeFeedback);
+    
+    if (this.state.currentIndex >= this.state.totalQuestions) {
+      this.endGame(newScore);
+      return;
+    }
+    
+    const nextQuestion = this.gameEngine.generateQuestion();
+    this.setState({
+      currentQuestion: nextQuestion,
+      currentIndex: this.state.currentIndex + 1,
+      feedback: safeFeedback,
+      score: newScore,
+      lastAnswer: userResponse
+    });
+    return;
+  }
+}
   endGame(score) {
     let endMsg;
     if (this.gameEngine && this.gameEngine.getEndMessage) {
@@ -351,8 +408,14 @@ export class GameTemplate extends React.Component {
 
   showHelp() {
     this.setState({ showHint: true });
-    const hintMsg = this.gameEngine && this.gameEngine.getHint ? 
-      this.gameEngine.getHint() : 'Скажите ответ голосом!';
+    let hintMsg;
+    
+    if (this.gameEngine && this.gameEngine.getHint) {
+      hintMsg = this.gameEngine.getHint(this.state.currentQuestion);
+    } else {
+      hintMsg = 'Скажите ответ голосом!';
+    }
+    
     this.speak(this.safeString(hintMsg));
     
     setTimeout(() => {
@@ -360,10 +423,6 @@ export class GameTemplate extends React.Component {
         this.setState({ showHint: false });
       }
     }, 8000);
-  }
-
-  formatAnswer(answer) {
-    return this.safeString(answer);
   }
 
   render() {
@@ -375,8 +434,7 @@ export class GameTemplate extends React.Component {
     
     let questionText = '?';
     if (currentQuestion && this.gameEngine && typeof this.gameEngine.renderQuestion === 'function') {
-      const rendered = this.gameEngine.renderQuestion(currentQuestion);
-      questionText = this.safeString(rendered);
+      questionText = this.safeString(this.gameEngine.renderQuestion(currentQuestion));
     }
     
     return (
@@ -393,7 +451,8 @@ export class GameTemplate extends React.Component {
           </button>
         </div>
         
-        {isActive && (
+        {/* Счётчик - показываем только если игра не скрывает его */}
+        {isActive && !this.gameEngine.hideScore && (
           <div className="game-template-progress">
             <span>📊 Вопрос {currentIndex} из {totalQuestions}</span>
             <span className="game-template-score-badge">
@@ -439,17 +498,21 @@ export class GameTemplate extends React.Component {
         <div className="game-template-feedback-area">
           {showHint ? (
             <div className="game-template-hint-box">
-              💡 {this.gameEngine && this.gameEngine.getHint ? this.safeString(this.gameEngine.getHint()) : 'Скажите ответ голосом!'}
+              💡 {this.gameEngine && this.gameEngine.getHint ? 
+                  this.safeString(this.gameEngine.getHint(this.state.currentQuestion)) : 
+                  'Скажите ответ голосом!'}
             </div>
           ) : (
             <div className="game-template-feedback-box">
-              {feedbackText || (this.gameEngine && this.gameEngine.getWelcomeMessage ? this.safeString(this.gameEngine.getWelcomeMessage()) : 'Выберите игру')}
+              {feedbackText || (this.gameEngine && this.gameEngine.getWelcomeMessage ? 
+                this.safeString(this.gameEngine.getWelcomeMessage()) : 'Выберите игру')}
             </div>
           )}
         </div>
         
         <div className="game-template-voice-hint">
-          🎙️ Скажите голосом: {this.gameEngine && this.gameEngine.getVoiceCommandHint ? this.safeString(this.gameEngine.getVoiceCommandHint()) : 'число'}
+          🎙️ Скажите голосом: {this.gameEngine && this.gameEngine.getVoiceCommandHint ? 
+            this.safeString(this.gameEngine.getVoiceCommandHint()) : 'число'}
         </div>
       </div>
     );
