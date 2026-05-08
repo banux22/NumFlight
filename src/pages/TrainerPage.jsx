@@ -1,5 +1,6 @@
 import React from 'react';
 
+// Движки игр
 const BlitzGameEngine = {
   getName: () => 'Блиц',
   getIcon: () => '⚡',
@@ -48,9 +49,9 @@ const BlitzGameEngine = {
     return `${question.text} = ?`;
   },
   
-  getCorrectMessage: (question) => `✅ Верно! ${question.text} = ${question.answer}`,
+  getCorrectMessage: (question) => `💚 Верно! ${question.text} = ${question.answer}`,
   
-  getWrongMessage: (question) => `❌ Ошибка! ${question.text} = ${question.answer}`,
+  getWrongMessage: (question) => `❤️ Ошибка! ${question.text} = ${question.answer}`,
   
   getStartMessage: () => 'Поехали! Скажите число, например 25',
   
@@ -58,7 +59,7 @@ const BlitzGameEngine = {
   
   getEndMessage: (score) => {
     const percent = (score.correct / score.total) * 100;
-    if (percent === 100) return '🏆 Идеально! 5 из 5!';
+    if (percent === 100) return '🏆 Идеально!';
     if (percent >= 80) return '🎉 Отлично! ' + score.correct + ' из ' + score.total;
     if (percent >= 60) return '👍 Хорошо! ' + score.correct + ' из ' + score.total;
     return '💪 Результат: ' + score.correct + ' из ' + score.total;
@@ -146,12 +147,12 @@ const ChainsGameEngine = {
   },
   
   renderQuestion: (question) => {
-    return `${question.fullChain} = ? (действия выполняются по порядку!)`;
+    return `${question.fullChain} = ?`;
   },
   
-  getCorrectMessage: (question) => `✅ Правильно! Ответ: ${question.answer}`,
+  getCorrectMessage: (question) => `💚 Правильно! Ответ: ${question.answer}`,
   
-  getWrongMessage: (question) => `❌ Неправильно. Правильный ответ: ${question.answer}`,
+  getWrongMessage: (question) => `❤️ Неправильно. Правильный ответ: ${question.answer}`,
   
   getStartMessage: () => 'Внимание! Действия выполняются последовательно! Скажите ответ.',
   
@@ -159,13 +160,13 @@ const ChainsGameEngine = {
   
   getEndMessage: (score) => {
     const percent = (score.correct / score.total) * 100;
-    if (percent === 100) return '🏆 Идеально! 5 из 5!';
+    if (percent === 100) return '🏆 Идеально!';
     if (percent >= 80) return '🎉 Отлично! ' + score.correct + ' из ' + score.total;
     if (percent >= 60) return '👍 Хорошо! ' + score.correct + ' из ' + score.total;
     return '💪 Результат: ' + score.correct + ' из ' + score.total;
   },
   
-  getHint: () => 'Вычисляйте строго по порядку слева направо!',
+  getHint: () => 'Вычисляйте строго по порядку слева направо! Сначала первое действие, потом второе и так далее.',
   
   getVoiceCommandHint: () => 'число, например 42'
 };
@@ -361,7 +362,7 @@ const CompareGameEngine = {
     const sign = leftVal > rightVal ? '>' : '<';
     const leftFormatted = Number.isInteger(leftVal) ? leftVal : leftVal.toFixed(2);
     const rightFormatted = Number.isInteger(rightVal) ? rightVal : rightVal.toFixed(2);
-    return `✅ Правильно! ${leftFormatted} ${sign} ${rightFormatted}`;
+    return `💚 Правильно! ${leftFormatted} ${sign} ${rightFormatted}`;
   },
   
   getWrongMessage: (question) => {
@@ -371,7 +372,7 @@ const CompareGameEngine = {
     const leftFormatted = Number.isInteger(leftVal) ? leftVal : leftVal.toFixed(2);
     const rightFormatted = Number.isInteger(rightVal) ? rightVal : rightVal.toFixed(2);
     const correct = leftVal > rightVal ? 'левое' : 'правое';
-    return `❌ Неправильно. ${leftFormatted} ${sign} ${rightFormatted}. Правильный ответ: ${correct}`;
+    return `❤️ Неправильно. ${leftFormatted} ${sign} ${rightFormatted}. Правильный ответ: ${correct}`;
   },
   
   getStartMessage: () => 'Сравните выражения! Скажите "левое" или "правое"',
@@ -380,13 +381,13 @@ const CompareGameEngine = {
   
   getEndMessage: (score) => {
     const percent = (score.correct / score.total) * 100;
-    if (percent === 100) return '🏆 Идеально! 5 из 5!';
+    if (percent === 100) return '🏆 Идеально!';
     if (percent >= 80) return '🎉 Отлично! ' + score.correct + ' из ' + score.total;
     if (percent >= 60) return '👍 Хорошо! ' + score.correct + ' из ' + score.total;
     return '💪 Результат: ' + score.correct + ' из ' + score.total;
   },
   
-  getHint: () => 'Вычислите оба выражения и сравните результаты. Скажите "левое" или "правое"',
+  getHint: () => 'Вычислите оба выражения и сравните результаты. Посчитайте значение слева и справа, затем скажите "левое" или "правое" в зависимости от того, какое выражение больше.',
   
   getVoiceCommandHint: () => '"левое" или "правое"'
 };
@@ -438,10 +439,21 @@ export class TrainerPage extends React.Component {
     return String(value);
   }
 
+  keepListening = () => {
+    if (this.props.onKeepListening) {
+      this.props.onKeepListening();
+    } else if (this.assistant) {
+      this.assistant.sendData({ type: "keep_listening" });
+    }
+  }
+
   componentDidMount() {
     if (this.props.initialGame) {
       this.selectGame(this.props.initialGame);
     }
+    setTimeout(() => {
+      this.keepListening();
+    }, 1000);
   }
 
   selectGame(gameType) {
@@ -459,6 +471,10 @@ export class TrainerPage extends React.Component {
       score: { correct: 0, total: 0 },
       lastAnswer: null,
       showHint: false
+    }, () => {
+      setTimeout(() => {
+        this.keepListening();
+      }, 500);
     });
   }
 
@@ -482,6 +498,10 @@ export class TrainerPage extends React.Component {
       score: { correct: 0, total: 0 },
       lastAnswer: null,
       showHint: false
+    }, () => {
+      setTimeout(() => {
+        this.keepListening();
+      }, 500);
     });
   }
 
@@ -510,6 +530,10 @@ export class TrainerPage extends React.Component {
       score: { correct: 0, total: 0 },
       lastAnswer: null,
       showHint: false
+    }, () => {
+      setTimeout(() => {
+        this.keepListening();
+      }, 500);
     });
   }
 
@@ -522,17 +546,46 @@ export class TrainerPage extends React.Component {
 
   showHelp() {
     const engine = this.state.currentEngine;
+    const { currentGame, isActive } = this.state;
+    
     if (!engine) {
       this.setState({
-        feedback: 'Сначала выберите игру'
+        feedback: 'Сначала выберите игру: "блиц", "цепочки" или "сравни числа"'
       });
+      this.keepListening();
       return;
     }
     
-    this.setState({ showHint: true, feedback: engine.getHint() });
+    let hintText = '';
+    
+    if (currentGame === 'blitz') {
+      hintText = '💡 Подсказка: Скажите число, например "двадцать пять" или просто "25"';
+    } else if (currentGame === 'chains') {
+      hintText = '💡 Подсказка: Вычисляйте строго по порядку слева направо! Не используйте приоритет умножения.';
+    } else if (currentGame === 'compare') {
+      hintText = '💡 Подсказка: Вычислите значение левого выражения и правого выражения, затем сравните их. Скажите "левое", если левое больше, или "правое", если правое больше.';
+    } else {
+      hintText = engine.getHint();
+    }
+    
+    this.setState({ 
+      showHint: true, 
+      feedback: hintText 
+    });
+    
     setTimeout(() => {
-      if (this.state.showHint) this.setState({ showHint: false });
-    }, 8000);
+      if (this.state.showHint) {
+        this.setState({ showHint: false });
+        // Возвращаем обычное сообщение после подсказки
+        if (this.state.isActive && engine) {
+          this.setState({ feedback: engine.getStartMessage() });
+        } else if (this.state.currentGame && !this.state.isActive) {
+          this.setState({ feedback: `Выбрана игра: ${engine.getName()}. Скажите "начать"` });
+        }
+      }
+    }, 10000);
+    
+    this.keepListening();
   }
 
   parseNumber(text) {
@@ -590,6 +643,7 @@ export class TrainerPage extends React.Component {
         this.setState({
           feedback: 'Скажите "левое" или "правое"'
         });
+        this.keepListening();
         return;
       }
     } else {
@@ -632,7 +686,8 @@ export class TrainerPage extends React.Component {
       this.setState({
         isActive: false,
         showResults: true,
-        score: newScore
+        score: newScore,
+        feedback: feedback
       });
       return;
     }
@@ -646,6 +701,12 @@ export class TrainerPage extends React.Component {
       score: newScore,
       lastAnswer: userAnswer
     });
+    
+    setTimeout(() => {
+      if (this.state.isActive) {
+        this.keepListening();
+      }
+    }, 2000);
   }
 
   formatExpression(text) {
@@ -693,7 +754,6 @@ export class TrainerPage extends React.Component {
     const engine = currentEngine;
     const percent = totalCount > 0 ? Math.round((correctCount / totalCount) * 100) : 0;
     
-
     if (showResults && engine) {
       return (
         <div className="game-template-container">
@@ -727,8 +787,6 @@ export class TrainerPage extends React.Component {
               </div>
             </div>
           </div>
-
-          { }
         </div>
       );
     }
@@ -852,19 +910,17 @@ export class TrainerPage extends React.Component {
           )}
         </div>
 
-        {isActive && (
-          <div className="game-template-feedback-area">
-            {showHint ? (
-              <div className="game-template-hint-box">
-                💡 {engine ? engine.getHint() : 'Скажите ответ голосом!'}
-              </div>
-            ) : (
-              <div className="game-template-feedback-box">
-                {feedback}
-              </div>
-            )}
-          </div>
-        )}
+        <div className="game-template-feedback-area">
+          {showHint ? (
+            <div className="game-template-hint-box">
+              {feedback}
+            </div>
+          ) : (
+            <div className="game-template-feedback-box">
+              {feedback || (engine ? engine.getWelcomeMessage() : 'Добро пожаловать в Числовой полёт!')}
+            </div>
+          )}
+        </div>
       </div>
     );
   }

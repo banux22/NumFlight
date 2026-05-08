@@ -1,6 +1,5 @@
 import React from 'react';
 import { createAssistant, createSmartappDebugger } from '@salutejs/client';
-
 import './App.css';
 import { MainMenu } from './pages/MainMenu';
 import { TrainerPage } from './pages/TrainerPage';
@@ -12,7 +11,7 @@ const initializeAssistant = (getState) => {
       initPhrase: `Запусти ${process.env.REACT_APP_SMARTAPP}`,
       getState,
       nativePanel: {
-        defaultText: 'начнем',
+        defaultText: 'скажите привет',
         screenshotMode: false,
         tabIndex: -1,
       },
@@ -29,12 +28,11 @@ const initializeAssistant = (getState) => {
 export class App extends React.Component {
   constructor(props) {
     super(props);
-    
     this.state = {
       currentPage: 'main',
       selectedGame: null
     };
-    
+
     this.trainerPageRef = React.createRef();
     this.pendingGameAction = null;
     this.pendingAction = null;
@@ -84,24 +82,7 @@ export class App extends React.Component {
 
   dispatchAssistantAction(action) {
     console.log('dispatchAssistantAction:', action);
-    
-    if (!action || !action.type) {
-      return;
-    }
-    
-    // Игнорируем trainer_answer если не на странице тренажера
-    if (action.type === 'trainer_answer' && this.state.currentPage !== 'trainer') {
-      console.log('Ignoring trainer_answer - not on trainer page');
-      return;
-    }
-    
-    // Игнорируем trainer_answer если игра не активна
-    if (action.type === 'trainer_answer' && this.trainerPageRef && this.trainerPageRef.current) {
-      if (!this.trainerPageRef.current.state.isActive) {
-        console.log('Ignoring trainer_answer - training not active');
-        return;
-      }
-    }
+    if (!action || !action.type) return;
     
     switch (action.type) {
       case 'select_section':
@@ -133,14 +114,8 @@ export class App extends React.Component {
         
       case 'trainer_answer':
         let answerValue = action.answer || action.value || action.text;
-        
-        if (action.parameters && action.parameters.value) {
-          answerValue = action.parameters.value;
-        }
-        
-        if (action.smart_app_data && action.smart_app_data.answer) {
-          answerValue = action.smart_app_data.answer;
-        }
+        if (action.parameters && action.parameters.value) answerValue = action.parameters.value;
+        if (action.smart_app_data && action.smart_app_data.answer) answerValue = action.smart_app_data.answer;
         
         if (this.trainerPageRef && this.trainerPageRef.current) {
           this.trainerPageRef.current.checkAnswer(answerValue);
@@ -161,7 +136,6 @@ export class App extends React.Component {
         
       default:
         console.log('Unknown action type:', action.type);
-        return null;
     }
   }
 
@@ -176,9 +150,8 @@ export class App extends React.Component {
       'сравни числа': 'compare',
       'сравни': 'compare'
     };
-    
     const normalizedGame = gameMap[gameType] || gameType;
-    
+
     this.setState({ 
       currentPage: 'trainer', 
       selectedGame: normalizedGame 
@@ -206,7 +179,7 @@ export class App extends React.Component {
         }
       });
     } else if (action.section === 'main') {
-      this.setState({ 
+      this.setState({
         currentPage: 'main',
         selectedGame: null,
         pendingAction: null,
@@ -218,14 +191,14 @@ export class App extends React.Component {
   render() {
     if (this.state.currentPage === 'main') {
       return (
-        <MainMenu 
+        <MainMenu
           onSelectTrainer={(gameType) => {
             this.selectGame(gameType);
           }}
         />
       );
     }
-
+    
     if (this.state.currentPage === 'trainer') {
       return (
         <TrainerPage 
@@ -238,7 +211,7 @@ export class App extends React.Component {
         />
       );
     }
-    
+
     return null;
   }
 }
